@@ -28,7 +28,7 @@ const upload = () => {
         setStatusText("Converting to Image...");
 
         const imageFile = await convertPdfToImage(file);
-        console.log(imageFile);
+        console.log("Image" + imageFile);
         if(!imageFile.file) return setStatusText("Error: Failed to convert PDF2Image");
 
         setStatusText("Uploading image...");
@@ -48,6 +48,7 @@ const upload = () => {
             feedback:''
         }
         await kv.set(`resume:${uuid}`, JSON.stringify(data));
+        console.log(uuid);
         setStatusText("Analysing");
 
         const feedback = await ai.feedback(
@@ -56,11 +57,30 @@ const upload = () => {
         );
 
         if(!feedback) return setStatusText("Error: Failed to Analyse Resume");
-        const feedbacktext = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
-        data.feedback = JSON.parse(feedbacktext);
+        const feedbackTxt = typeof feedback.message.content === 'string'
+            ? feedback.message.content
+            : feedback.message.content[0].text;
+
+        const cleanedFeedback = feedbackTxt
+            .replace(/```json/g, '')  // remove ```json
+            .replace(/```/g, '')      // remove closing ```
+            .trim();                  // remove whitespace
+
+        try {
+            data.feedback = JSON.parse(cleanedFeedback);
+        } catch (err) {
+            console.error("Raw AI response:", feedbackTxt); // 👈 shows what AI actually returned
+            return setStatusText("Error: Failed to parse AI feedback");
+        }
+        //
+        // if(!response.ok) return setStatusText("Error: Failed to Analyse Resume");
+        // const result = await response.json();
+        // const feedbacktext = result.candidates[0].content.parts[0].text;
+        // data.feedback = JSON.parse(feedbacktext);
+        console.log(uuid);
         await kv.set(`resume:${uuid}`, JSON.stringify(data));
         setStatusText("Analyse Complete, redirecting");
-        console.log(data);
+        navigate(`/resume/${uuid}`)
     }
 
 
